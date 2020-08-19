@@ -100,14 +100,14 @@ class Unet_based(nn.Module):
         x = convs[-1]
     len_conv = len(convs)
     for i, block in enumerate(self.bu):
-      if self.model_name == 'unet':
-      	x = self.upsample(x)
-  		x = torch.cat([x, convs[len_conv-i-2]], dim=1)
-      else:
-      	g = x
-      	x = self.upsample(x)
-      	g_sig = self.attgate[i](g, convs[len_conv-i-2])
-      	x = torch.cat([x, g_sig], dim=1)
-      x = block(x)
+    	if self.model_name == 'unet':
+    		x = self.upsample(x)
+    		x = torch.cat([x, convs[len_conv-i-2]], dim=1)
+    	else:
+	      	g = x
+	      	x = self.upsample(x)
+	      	g_sig = self.attgate[i](g, convs[len_conv-i-2])
+	      	x = torch.cat([x, g_sig], dim=1)
+      	x = block(x)
     x = self.last_conv(x)
     return x
