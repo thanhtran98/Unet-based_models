@@ -47,7 +47,7 @@ class SegmentLoss(nn.Module):
       B_sum = torch.sum(tflat * tflat)
       return (intersection + smooth) / (A_sum + B_sum - intersection + smooth)
 
- class MVN(nn.Module):
+class MVN(nn.Module):
   def __init__(self, esp=1e-6):
     super(MVN, self).__init__()
     self.esp=esp
