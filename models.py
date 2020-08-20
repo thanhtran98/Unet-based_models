@@ -57,6 +57,36 @@ class MVN(nn.Module):
     x = (x-mean)/(std+self.esp)
     return x
 
+class Attention_block(nn.Module):
+    def __init__(self,F_g,F_l,F_int):
+        super(Attention_block,self).__init__()
+        self.W_g = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+            nn.Conv2d(F_g, F_int, kernel_size=1,stride=1,padding=0,bias=True),
+            nn.BatchNorm2d(F_int)
+            )
+        
+        self.W_x = nn.Sequential(
+            nn.Conv2d(F_l, F_int, kernel_size=1,stride=1,padding=0,bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+
+        self.psi = nn.Sequential(
+            nn.Conv2d(F_int, 1, kernel_size=1,stride=1,padding=0,bias=True),
+            nn.BatchNorm2d(1),
+            nn.Sigmoid()
+        )
+        
+        self.relu = nn.ReLU(inplace=True)
+        
+    def forward(self,g,x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi = self.relu(g1+x1)
+        psi = self.psi(psi)
+
+        return x*psi
+
 class Unet_based(nn.Module):
 
   def __init__(self, n_class, norm=None, model_name='unet'):
@@ -109,5 +139,47 @@ class Unet_based(nn.Module):
             g_sig = self.attgate[i](g, convs[len_conv-i-2])
             x = torch.cat([x, g_sig], dim=1)
         x = block(x)
+    x = self.last_conv(x)
+    return x
+
+class Unet(nn.Module):
+
+  def __init__(self, n_class, norm='mvn'):
+    super(Unet, self).__init__()
+    self.n_class = n_class
+    self.bd = nn.ModuleList([
+                             conv_block(3,64,reps=2,norm=norm), nn.MaxPool2d(2,2),
+                             conv_block(64,128,reps=2,norm=norm), nn.MaxPool2d(2,2),
+                             conv_block(128,256,reps=2,norm=norm), nn.MaxPool2d(2,2),
+                             conv_block(256,512,reps=2,norm=norm), nn.MaxPool2d(2,2),
+                             conv_block(512,512,reps=2,norm=norm)
+    ])
+    # self.maxpool = nn.MaxPool2d(2,2)
+    # self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+    self.bu = nn.ModuleList([
+                             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True), conv_block(512+512,512,reps=2,norm=norm),
+                             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True), conv_block(256+512,256,reps=2,norm=norm),
+                             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True), conv_block(128+256,128,reps=2,norm=norm),
+                             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True), conv_block(64+128,64,reps=2,norm=norm)
+    ])
+    if n_class ==1:
+      self.last_conv = nn.Sequential(nn.Conv2d(64,n_class,1), nn.Sigmoid())
+    else:
+      self.last_conv = nn.Sequential(nn.Conv2d(64,n_class,1), nn.Softmax())
+  
+  def forward(self, x):
+    convs=[]
+    for i, block in enumerate(self.bd[::2]):
+      if i<len(self.bd[::2])-1:
+        convs.append(block(x))
+        x = self.bd[2*i+1](convs[-1])
+      else:
+        convs.append(block(x))
+        x = convs[-1]
+    len_conv = len(convs)
+    for i, block in enumerate(self.bu[::2]):
+      x = block(x)
+      x = torch.cat([x, convs[len_conv-i-2]], dim=1)
+      x = self.bu[2*i+1](x)
     x = self.last_conv(x)
     return x
