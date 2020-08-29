@@ -89,12 +89,13 @@ class Attention_block(nn.Module):
 
 class Unet_based(nn.Module):
 
-  def __init__(self, n_class, norm=None, model_name='unet'):
+  def __init__(self, n_class, in_channel=1, norm=None, model_name='unet'):
     super(Unet_based, self).__init__()
     self.model_name = model_name
     self.n_class = n_class
+    self.in_channel = in_channel
     self.bd = nn.ModuleList([
-                             conv_block(3,64,reps=2,norm=norm),
+                             conv_block(in_channel,64,reps=2,norm=norm),
                              conv_block(64,128,reps=2,norm=norm),
                              conv_block(128,256,reps=2,norm=norm),
                              conv_block(256,512,reps=2,norm=norm),
@@ -144,11 +145,12 @@ class Unet_based(nn.Module):
 
 class Unet(nn.Module):
 
-  def __init__(self, n_class, norm='mvn'):
+  def __init__(self, n_class, in_channel=1, norm='mvn'):
     super(Unet, self).__init__()
     self.n_class = n_class
+    self.in_channel = in_channel
     self.bd = nn.ModuleList([
-                             conv_block(3,64,reps=2,norm=norm), nn.MaxPool2d(2,2),
+                             conv_block(in_channel,64,reps=2,norm=norm), nn.MaxPool2d(2,2),
                              conv_block(64,128,reps=2,norm=norm), nn.MaxPool2d(2,2),
                              conv_block(128,256,reps=2,norm=norm), nn.MaxPool2d(2,2),
                              conv_block(256,512,reps=2,norm=norm), nn.MaxPool2d(2,2),
